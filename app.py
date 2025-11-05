@@ -1,12 +1,16 @@
 import os
 from datetime import datetime, date
 from pathlib import Path
+from functools import wraps
+from sqlalchemy.orm import joinedload
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Car, Reservation, ForumTopic, ForumPost, ChatMessage
+
+
 
 def create_app():
     app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -19,6 +23,15 @@ def create_app():
     login_manager = LoginManager()
     login_manager.login_view = "login"
     login_manager.init_app(app)
+
+    def admin_required(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_admin:
+                flash("Dostęp tylko dla administratora.", "error")
+                return redirect(url_for('index'))
+            return f(*args, **kwargs)
+        return decorated_function
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -79,7 +92,108 @@ def create_app():
         cars = Car.query.order_by(Car.make, Car.model).all()
         return render_template("cars.html", cars=cars)
 
+    @app.route("/my-reservations")
+    @login_required
+    def my_reservations():
+        # Zawsze sortujemy od najnowszych
+        q = Reservation.query.order_by(Reservation.start_date.desc())
+        
+        if current_user.is_admin:
+            # ADMIN: Widzi wszystko. 
+            # Pobieramy rezerwacje, od razu ładując dane auta i użytkownika
+            reservations = q.options(
+                joinedload(Reservation.user), 
+                joinedload(Reservation.car)
+            ).all()
+            title = "Wszystkie rezerwacje"
+        else:
+            # ZWYKŁY USER: Widzi tylko swoje.
+            # Filtrujemy po ID zalogowanego usera
+            reservations = q.filter_by(user_id=current_user.id).options(
+                joinedload(Reservation.car) # tu user jest niepotrzebny, bo to on
+            ).all()
+            title = "Moje rezerwacje"
+            
+        return render_template("reservations.html", 
+                               reservations=reservations, 
+                               title=title)
+    
+
+    @app.post("/reservations/<int:res_id>/delete")
+    @login_required
+    @admin_required  # Absolutnie kluczowe!
+    def delete_reservation(res_id):
+        res = Reservation.query.get_or_404(res_id)
+        
+        # Przechowajmy informację, kto to był, zanim usuniemy
+        user_email = res.user.email 
+        
+        res.status = 'anulowana'
+        db.session.commit()
+        
+        flash(f"Rezerwacja dla {user_email} została anulowana.", "success")
+        return redirect(url_for('my_reservations'))
+
+# ... po funkcji delete_reservation()
+
+    # ---------- Admin Panel ----------
+    @app.route("/admin/cars", methods=["GET"])
+    @login_required
+    @admin_required
+    def admin_cars():
+        cars = Car.query.order_by(Car.make, Car.model).all()
+        return render_template("admin_cars.html", cars=cars)
+
+    @app.post("/admin/cars/add")
+    @login_required
+    @admin_required
+    def admin_add_car():
+        try:
+            make = request.form.get("make")
+            model = request.form.get("model")
+            year = int(request.form.get("year"))
+            price_per_day = float(request.form.get("price_per_day"))
+
+            if not make or not model or not year or not price_per_day:
+                flash("Wypełnij wszystkie pola.", "error")
+                return redirect(url_for('admin_cars'))
+            
+            new_car = Car(make=make, model=model, year=year, price_per_day=price_per_day, available=True)
+            db.session.add(new_car)
+            db.session.commit()
+            flash(f"Samochód {make} {model} został dodany.", "success")
+            
+        except ValueError:
+            flash("Rok i cena muszą być poprawnymi liczbami.", "error")
+        except Exception as e:
+            flash(f"Wystąpił błąd: {e}", "error")
+            
+        return redirect(url_for('admin_cars'))
+
+    @app.post("/admin/cars/<int:car_id>/delete")
+    @login_required
+    @admin_required
+    def admin_delete_car(car_id):
+        car = Car.query.get_or_404(car_id)
+        
+        # Bezpiecznik: Sprawdź, czy auto ma rezerwacje (nawet anulowane)
+        if car.reservations:
+            flash(f"Nie można usunąć auta {car.make} {car.model}, ponieważ ma powiązane rezerwacje w historii.", "error")
+            return redirect(url_for('admin_cars'))
+            
+        # Jeśli nie ma rezerwacji, można usunąć
+        db.session.delete(car)
+        db.session.commit()
+        flash(f"Samochód {car.make} {car.model} został usunięty.", "success")
+        return redirect(url_for('admin_cars'))
+    
+    # ---------- Forum ----------
+    # ... reszta kodu, np. funkcja forum()
+
+
+
     @app.post("/cars/<int:car_id>/reserve")
+
     @login_required
     def reserve(car_id):
         car = Car.query.get_or_404(car_id)
@@ -98,7 +212,8 @@ def create_app():
         conflict = Reservation.query.filter(
             Reservation.car_id == car.id,
             Reservation.start_date <= end_date,
-            Reservation.end_date >= start_date
+            Reservation.end_date >= start_date,
+            Reservation.status == 'aktywna'
         ).first()
         if conflict:
             flash("Samochód jest już zarezerwowany w wybranym okresie.", "error")
@@ -109,7 +224,7 @@ def create_app():
         db.session.add(res)
         db.session.commit()
         flash("Rezerwacja zapisana.", "success")
-        return redirect(url_for("cars"))
+        return redirect(url_for("my_reservations"))
 
     # ---------- Forum ----------
     @app.route("/forum", methods=["GET", "POST"])
@@ -179,6 +294,18 @@ def create_app():
         db.session.commit()
         return jsonify({"ok": True, "id": m.id, "created_at": m.created_at.isoformat()})
 
+
+    @app.post("/api/chat/message/<int:message_id>/delete")
+    @login_required
+    @admin_required # Kluczowe!
+    def delete_chat_message(message_id):
+        msg = ChatMessage.query.get_or_404(message_id)
+        
+        db.session.delete(msg)
+        db.session.commit()
+        
+        return jsonify({"ok": True})
+
     # ---------- Helpers ----------
     @app.template_filter("fmt_dt")
     def fmt_dt(dt: datetime):
@@ -196,7 +323,8 @@ def seed(app):
             admin = User(
                 email="admin@example.com",
                 name="Admin",
-                password_hash=generate_password_hash("admin123")
+                password_hash=generate_password_hash("admin123"),
+                is_admin=True
             )
             db.session.add(admin)
         # Samochody

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Panel Admina: Zarządzanie Flotą</h2>
+
+  <section class="card">
+    <h3>Dodaj nowy samochód</h3>
+    <form method="post" action="{{ url_for('admin_add_car') }}" class="form">
+      <div class="form-row-group">
+        <label>Marka <input type="text" name="make" required></label>
+        <label>Model <input type="text" name="model" required></label>
+        <label>Rok <input type="number" name="year" min="2000" max="2030" required></label>
+        <label>Cena/dzień <input type="number" name="price_per_day" step="0.01" min="1" required></label>
+      </div>
+      <button type="submit">Dodaj samochód</button>
+    </form>
+  </section>
+
+  <section>
+    <h3>Istniejąca flota</h3>
+    {% if not cars %}
+      <p><em>Brak samochodów w bazie.</em></p>
+    {% else %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Marka</th>
+            <th>Model</th>
+            <th>Rok</th>
+            <th>Cena/dzień</th>
+            <th>Akcja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cars %}
+          <tr>
+            <td>{{ c.make }}</td>
+            <td>{{ c.model }}</td>
+            <td>{{ c.year }}</td>
+            <td>{{ "%.2f zł"|format(c.price_per_day) }}</td>
+            <td>
+              <form method="post"
+                    action="{{ url_for('admin_delete_car', car_id=c.id) }}"
+                    onsubmit="return confirm('Czy na pewno chcesz USUNĄĆ ten samochód? Tej akcji nie można cofnąć.');">
+                <button type="submit" class="btn-danger">Usuń</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+
+  <style>
+    .form-row-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      width: 100%;
+    }
+    .form-row-group label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .form-row-group input {
+      width: 100%;
+      box-sizing: border-box; /* Ważne, aby padding nie rozpychał */
+    }
+  </style>
+
+{% endblock %}

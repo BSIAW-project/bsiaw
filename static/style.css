@@ -31,3 +31,36 @@ button:hover { filter:brightness(1.1); }
 
 .chat-box { height: 360px; overflow-y: auto; background:var(--card); border:1px solid #1f2937; border-radius:10px; padding:10px; margin-bottom:8px; }
 .msg { padding:6px 8px; border-bottom:1px dashed #1f2937; }
+
+/*
+ * Dodatkowe style dla przycisków admina
+ */
+
+/* Czerwony przycisk (np. "Anuluj") - bazuje na głównym stylu .button */
+.btn-danger {
+  background: #b91c1c; /* Ciemny czerwony */
+  color: white;
+  font-weight: 700;
+  border: none;
+}
+.btn-danger:hover {
+  background: #dc2626; /* Jaśniejszy czerwony przy najechaniu */
+  filter: none; /* Usuwamy filtr, jeśli był dziedziczony */
+}
+
+
+/* Mały przycisk usuwania na czacie */
+.chat-delete-btn {
+  background: #372020;      /* Bardzo ciemne czerwone tło */
+  border: 1px solid #ef4444; /* Czerwona ramka (kolor z .flash.error) */
+  color: #ef4444;           /* Czerwony tekst */
+  padding: 2px 5px;
+  font-size: 0.8em;         /* Mniejsza czcionka */
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 8px;         /* Odstęp od wiadomości */
+}
+.chat-delete-btn:hover {
+  background: #4e2b2b;
+  color: white;
+}
