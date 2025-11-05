@@ -8,6 +8,7 @@
   </form>
 
   <script>
+    let IS_ADMIN = {{ current_user.is_admin|tojson }};
     let lastTs = null;
 
     async function loadNew() {
@@ -24,7 +25,11 @@
             const div = document.createElement("div");
             div.className = "msg";
             const when = new Date(m.created_at).toLocaleString();
-            div.textContent = `[${when}] ${m.user}: ${m.content}`;
+            let msgHtml = `<span>[${when}] ${m.user}: ${m.content}</span>`;
+            if (IS_ADMIN) {
+              msgHtml += ` <button class="chat-delete-btn" onclick="deleteMsg(${m.id}, this)">Usuń</button>`;
+            }
+            div.innerHTML = msgHtml;
             box.appendChild(div);
           });
           box.scrollTop = box.scrollHeight;
@@ -52,7 +57,29 @@
       }
       return false;
     }
+    
 
+    async function deleteMsg(messageId, buttonElement) {
+      if (!confirm("Na pewno usunąć tę wiadomość?")) return;
+      
+      try {
+        const res = await fetch(`/api/chat/message/${messageId}/delete`, {
+          method: "POST"
+        });
+        const data = await res.json();
+        
+        if (data.ok) {
+          // Usuń całą wiadomość (element <div>) z widoku
+          buttonElement.parentElement.remove();
+        } else {
+          alert("Błąd: " + (data.error || "Nieznany błąd"));
+        }
+      } catch (e) {
+        console.error(e);
+        alert("Błąd sieciowy podczas usuwania.");
+      }
+    }
+   
     // Start polling
     loadNew();
     setInterval(loadNew, 2000);

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>{{ title }}</h2>
+
+  {% if not reservations %}
+    <p><em>Brak rezerwacji.</em></p>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          {% if current_user.is_admin %}
+            <th>Użytkownik</th>
+          {% endif %}
+          <th>Samochód</th>
+          <th>Data rozpoczęcia</th>
+          <th>Data zakończenia</th>
+          <th>Status</th> {% if current_user.is_admin %}
+            <th>Akcja</th> {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for res in reservations %}
+        <tr>
+          {% if current_user.is_admin %}
+            <td>{{ res.user.name }} ({{ res.user.email }})</td>
+          {% endif %}
+
+          <td>{{ res.car.make }} {{ res.car.model }} ({{ res.car.year }})</td>
+          <td>{{ res.start_date }}</td>
+          <td>{{ res.end_date }}</td>
+          
+          <td>
+            {% if res.status == 'aktywna' %}
+              <strong style="color: #22d3ee;">Aktywna</strong>
+            {% elif res.status == 'anulowana' %}
+              <span style="color: #ef4444;">Anulowana</span>
+            {% else %}
+              {{ res.status }}
+            {% endif %}
+          </td>
+          
+          {% if current_user.is_admin %}
+            <td>
+              {% if res.status == 'aktywna' %}
+                <form method="post" 
+                      action="{{ url_for('delete_reservation', res_id=res.id) }}"
+                      onsubmit="return confirm('Czy na pewno chcesz ANULOWAĆ tę rezerwację?');">
+                  <button type="submit" class="btn-danger">Anuluj</button>
+                </form>
+              {% else %}
+                <em>-</em>
+              {% endif %}
+            </td>
+          {% endif %}
+          
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock %}

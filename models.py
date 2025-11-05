@@ -11,6 +11,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+
     def get_id(self):
         return str(self.id)
 
@@ -29,6 +31,8 @@ class Reservation(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    status = db.Column(db.String(20), default='aktywna', nullable=False)
 
     user = db.relationship('User', backref='reservations')
     car = db.relationship('Car', backref='reservations')
