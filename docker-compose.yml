@@ -3,8 +3,32 @@ services:
     build: .
     ports:
       - "8000:8000"
-    volumes:
-      - ./data:/app/data
+    # ZMIANA: Usługa web zależy teraz od usługi db
+    depends_on:
+      - db
+    # ZMIANA: Zaktualizowane zmienne środowiskowe
     environment:
       - SECRET_KEY=change-me-in-prod
-      - DATABASE_URL=sqlite:////app/data/app.db
+      # Ta zmienna wskazuje teraz na kontener 'db', a nie na plik
+      - DATABASE_URL=postgresql://postgres:postgres123@db:5432/car_rental_db
+    # ZMIANA: Wolumen ./data nie jest już potrzebny dla bazy
+    # (możesz go zostawić, jeśli trzymasz tam inne pliki)
+    # volumes:
+    #   - ./data:/app/data
+    restart: always
+
+  # NOWOŚĆ: Definicja usługi bazy danych PostgreSQL
+  db:
+    image: postgres:15-alpine
+    environment:
+      # Te dane logowania muszą pasować do DATABASE_URL powyżej
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: car_rental_db
+    volumes:
+      # Ten wolumen przechowuje dane bazy danych, aby przetrwały restarty
+      - ./postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:
