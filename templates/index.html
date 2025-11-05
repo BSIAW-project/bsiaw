@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Wypożyczalnia Samochodów</h1>
+  <p>Prosta aplikacja wypozyczania samochodow z logowaniem, forum z ocenami i chatem do pomocy dla klientow.</p>
+  <div class="stats">
+    <div class="card">Samochody: <strong>{{ cars_count }}</strong></div>
+    <div class="card">Tematy na forum: <strong>{{ topics_count }}</strong></div>
+    <div class="card">Wiadomości na chacie: <strong>{{ messages_count }}</strong></div>
+  </div>
+  <p>Przejdź do zakładki <a href="{{ url_for('cars') }}">Samochody</a>, <a href="{{ url_for('forum') }}">Forum</a> lub <a href="{{ url_for('chat') }}">Chat</a>.</p>
+{% endblock %}

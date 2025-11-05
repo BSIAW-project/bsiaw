@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Samochody</h2>
+  <table class="table">
+    <thead>
+      <tr><th>Marka</th><th>Model</th><th>Rok</th><th>Cena/dzień</th><th>Rezerwacja</th></tr>
+    </thead>
+    <tbody>
+    {% for c in cars %}
+      <tr>
+        <td>{{ c.make }}</td>
+        <td>{{ c.model }}</td>
+        <td>{{ c.year }}</td>
+        <td>{{ "%.2f zł"|format(c.price_per_day) }}</td>
+        <td>
+          {% if current_user.is_authenticated %}
+            <form method="post" action="{{ url_for('reserve', car_id=c.id) }}" class="row">
+              <input type="date" name="start_date" required>
+              <input type="date" name="end_date" required>
+              <button type="submit">Rezerwuj</button>
+            </form>
+          {% else %}
+            <em>Zaloguj się, aby rezerwować</em>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

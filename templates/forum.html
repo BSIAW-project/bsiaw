@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Forum</h2>
+
+  <section class="card">
+    <h3>Nowy temat</h3>
+    <form method="post" class="form row">
+      <input type="text" name="title" placeholder="Tytuł tematu" required>
+      <button type="submit">Utwórz</button>
+    </form>
+  </section>
+
+  <section>
+    <h3>Tematy</h3>
+    <ul class="list">
+      {% for t in topics %}
+        <li>
+          <a href="{{ url_for('forum_topic', topic_id=t.id) }}">{{ t.title }}</a>
+          <small> — {{ t.user.name }} • {{ t.created_at|fmt_dt }}</small>
+        </li>
+      {% else %}
+        <li><em>Brak tematów.</em></li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>{{ topic.title }}</h2>
+  <div class="posts">
+    {% for p in posts %}
+      <div class="post card">
+        <div class="post-meta"><strong>{{ p.user.name }}</strong> • {{ p.created_at|fmt_dt }}</div>
+        <div class="post-body">{{ p.content }}</div>
+      </div>
+    {% else %}
+      <p><em>Brak wpisów.</em></p>
+    {% endfor %}
+  </div>
+
+  <h3>Dodaj wpis</h3>
+  <form method="post" class="form">
+    <textarea name="content" rows="4" placeholder="Treść..." required></textarea>
+    <button type="submit">Wyślij</button>
+  </form>
+{% endblock %}

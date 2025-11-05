@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Chat (globalny pokój)</h2>
+  <div id="chat-box" class="chat-box"></div>
+  <form id="chat-form" class="form row" onsubmit="return sendMsg(event)">
+    <input type="text" id="chat-input" placeholder="Napisz wiadomość..." required>
+    <button type="submit">Wyślij</button>
+  </form>
+
+  <script>
+    let lastTs = null;
+
+    async function loadNew() {
+      let url = "/api/chat/messages";
+      if (lastTs) {
+        url += "?after=" + encodeURIComponent(lastTs);
+      }
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const box = document.getElementById("chat-box");
+          data.forEach(m => {
+            const div = document.createElement("div");
+            div.className = "msg";
+            const when = new Date(m.created_at).toLocaleString();
+            div.textContent = `[${when}] ${m.user}: ${m.content}`;
+            box.appendChild(div);
+          });
+          box.scrollTop = box.scrollHeight;
+          lastTs = data[data.length - 1].created_at;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function sendMsg(e) {
+      e.preventDefault();
+      const input = document.getElementById("chat-input");
+      const content = input.value.trim();
+      if (!content) return false;
+      input.value = "";
+      try {
+        await fetch("/api/chat/send", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({content})
+        });
+      } catch (e) {
+        console.error(e);
+      }
+      return false;
+    }
+
+    // Start polling
+    loadNew();
+    setInterval(loadNew, 2000);
+  </script>
+{% endblock %}
