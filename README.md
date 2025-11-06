@@ -23,11 +23,11 @@
 ```text
 car_rental_app/
 ├─ app.py                    # główna aplikacja Flask
-├─ models.py                 # modele SQLAlchemy
+├─ models.py                
 ├─ requirements.txt
 ├─ Dockerfile
 ├─ docker-compose.yml
-├─ data/                     # tu trafia SQLite (wolumen)
+├─ data/                    
 ├─ templates/
 │  ├─ base.html
 │  ├─ index.html
