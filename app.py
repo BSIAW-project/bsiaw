@@ -1,5 +1,6 @@
 import os
 import time
+import re 
 from datetime import datetime, date
 from pathlib import Path
 from functools import wraps
@@ -11,7 +12,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Car, Reservation, ForumTopic, ForumPost, ChatMessage
-
+from datetime import datetime, date, timedelta
 
 def wait_for_db(app, max_retries=30, delay=2):
     """Wait for database to be available"""
@@ -36,6 +37,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////app/data/app.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=6)
 
     db.init_app(app)
 
@@ -74,6 +76,18 @@ def create_app():
             if not email or not name or not password:
                 flash("Wypełnij wszystkie pola.", "error")
                 return redirect(url_for("register"))
+            if len(password) < 12:
+                flash("Hasło musi mieć co najmniej 12 znaków.", "error")
+                return redirect(url_for("register"))
+            if not re.search(r"[A-Z]", password):
+                flash("Hasło musi zawierać co najmniej jedną wielką literę.", "error")
+                return redirect(url_for("register"))
+            if not re.search(r"[a-z]", password):
+                flash("Hasło musi zawierać co najmniej jedną małą literę.", "error")
+                return redirect(url_for("register"))
+            if not re.search(r"[^A-Za-z0-9]", password):
+                flash("Hasło musi zawierać co najmniej jeden znak specjalny.", "error")
+                return redirect(url_for("register"))
             if User.query.filter_by(email=email).first():
                 flash("Użytkownik o tym e-mailu już istnieje.", "error")
                 return redirect(url_for("register"))
@@ -93,6 +107,7 @@ def create_app():
             user = User.query.filter_by(email=email).first()
             if user and check_password_hash(user.password_hash, password):
                 login_user(user)
+                session.permanent = True
                 flash("Zalogowano.", "success")
                 return redirect(url_for("index"))
             flash("Błędny e-mail lub hasło.", "error")
