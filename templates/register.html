@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Rejestracja</h2>
-  <form method="post" class="form">
-    <label>Imię/Nick <input type="text" name="name" required></label>
-    <label>E-mail <input type="email" name="email" required></label>
-    <label>Hasło <input type="password" name="password" minlength="6" required></label>
-    <button type="submit">Utwórz konto</button>
-  </form>
+<h2>Rejestracja</h2>
+<form method="post" class="form">
+  <label>Imię/Nick <input type="text" name="name" required></label>
+  <label>E-mail <input type="email" name="email" required></label>
+  <label>Hasło <input type="password" name="password" minlength="12" required></label>
+  <button type="submit">Utwórz konto</button>
+</form>
 {% endblock %}
