@@ -1,8 +1,10 @@
 import os
+import time
 from datetime import datetime, date
 from pathlib import Path
 from functools import wraps
 from sqlalchemy.orm import joinedload
+from sqlalchemy import text
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
@@ -10,6 +12,23 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Car, Reservation, ForumTopic, ForumPost, ChatMessage
 
+
+def wait_for_db(app, max_retries=30, delay=2):
+    """Wait for database to be available"""
+    with app.app_context():
+        for i in range(max_retries):
+            try:
+                # Try to execute a simple query
+                db.session.execute(text('SELECT 1'))
+                print(f"Database is available after {i} attempts")
+                return True
+            except Exception as e:
+                if i == max_retries - 1:
+                    print(f"Could not connect to database after {max_retries} attempts")
+                    raise
+                print(f"Waiting for database... (attempt {i+1}/{max_retries})")
+                time.sleep(delay)
+        return False
 
 
 def create_app():
@@ -340,6 +359,8 @@ def seed(app):
 
 if __name__ == "__main__":
     app = create_app()
+    # Wait for database to be available before seeding
+    wait_for_db(app)
     seed(app)
     # Uruchom wbudowany serwer (demo). W produkcji użyj gunicorn/uwsgi.
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
