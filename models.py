@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+import secrets
 
 db = SQLAlchemy()
 
@@ -9,12 +10,18 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     name = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    security_code = db.Column(db.String(32), unique=True, nullable=True, default=lambda: User.generate_security_code())
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
     def get_id(self):
         return str(self.id)
+    
+    @staticmethod
+    def generate_security_code():
+        """Generate a unique 16-character security code"""
+        return secrets.token_hex(8).upper()
 
 class Car(db.Model):
     id = db.Column(db.Integer, primary_key=True)
