@@ -1,6 +1,7 @@
 import os
 import time
-from datetime import datetime, date
+import re 
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from functools import wraps
 from sqlalchemy.orm import joinedload
@@ -11,7 +12,6 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from models import db, User, Car, Reservation, ForumTopic, ForumPost, ChatMessage
-
 
 def wait_for_db(app, max_retries=30, delay=2):
     """Wait for database to be available"""
@@ -36,6 +36,7 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////app/data/app.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=6)
 
     db.init_app(app)
 
@@ -74,15 +75,28 @@ def create_app():
             if not email or not name or not password:
                 flash("Wypełnij wszystkie pola.", "error")
                 return redirect(url_for("register"))
+            if len(password) < 12:
+                flash("Hasło musi mieć co najmniej 12 znaków.", "error")
+                return redirect(url_for("register"))
+            if not re.search(r"[A-Z]", password):
+                flash("Hasło musi zawierać co najmniej jedną wielką literę.", "error")
+                return redirect(url_for("register"))
+            if not re.search(r"[a-z]", password):
+                flash("Hasło musi zawierać co najmniej jedną małą literę.", "error")
+                return redirect(url_for("register"))
+            if not re.search(r"[^A-Za-z0-9]", password):
+                flash("Hasło musi zawierać co najmniej jeden znak specjalny.", "error")
+                return redirect(url_for("register"))
             if User.query.filter_by(email=email).first():
                 flash("Użytkownik o tym e-mailu już istnieje.", "error")
                 return redirect(url_for("register"))
 
-            user = User(email=email, name=name, password_hash=generate_password_hash(password))
+            security_code = User.generate_security_code()
+            user = User(email=email, name=name, password_hash=generate_password_hash(password), security_code=security_code)
             db.session.add(user)
             db.session.commit()
-            flash("Konto utworzone. Możesz się zalogować.", "success")
-            return redirect(url_for("login"))
+            # Pass security code to template to display to user
+            return render_template("register_success.html", security_code=security_code)
         return render_template("register.html")
 
     @app.route("/login", methods=["GET", "POST"])
@@ -93,6 +107,7 @@ def create_app():
             user = User.query.filter_by(email=email).first()
             if user and check_password_hash(user.password_hash, password):
                 login_user(user)
+                session.permanent = True
                 flash("Zalogowano.", "success")
                 return redirect(url_for("index"))
             flash("Błędny e-mail lub hasło.", "error")
@@ -104,6 +119,49 @@ def create_app():
         logout_user()
         flash("Wylogowano.", "success")
         return redirect(url_for("index"))
+
+    @app.route("/forgot-password", methods=["GET", "POST"])
+    def forgot_password():
+        if request.method == "POST":
+            email = request.form.get("email", "").strip().lower()
+            security_code = request.form.get("security_code", "").strip().upper()
+            new_password = request.form.get("new_password", "")
+
+            if not email or not security_code or not new_password:
+                flash("Wypełnij wszystkie pola.", "error")
+                return redirect(url_for("forgot_password"))
+            
+            # Walidacja nowego hasła
+            if len(new_password) < 12:
+                flash("Hasło musi mieć co najmniej 12 znaków.", "error")
+                return redirect(url_for("forgot_password"))
+            if not re.search(r"[A-Z]", new_password):
+                flash("Hasło musi zawierać co najmniej jedną wielką literę.", "error")
+                return redirect(url_for("forgot_password"))
+            if not re.search(r"[a-z]", new_password):
+                flash("Hasło musi zawierać co najmniej jedną małą literę.", "error")
+                return redirect(url_for("forgot_password"))
+            if not re.search(r"[^A-Za-z0-9]", new_password):
+                flash("Hasło musi zawierać co najmniej jeden znak specjalny.", "error")
+                return redirect(url_for("forgot_password"))
+            
+            # Znajdź użytkownika i zweryfikuj kod bezpieczeństwa
+            user = User.query.filter_by(email=email, security_code=security_code).first()
+            if not user:
+                flash("Nieprawidłowy e-mail lub kod bezpieczeństwa.", "error")
+                return redirect(url_for("forgot_password"))
+            
+            if user.is_admin:
+                flash("Ta funkcja jest dostępna tylko dla zwykłych użytkowników. Skontaktuj się z innym administratorem.", "error")
+                return redirect(url_for("login"))
+        
+            # Zresetuj hasło
+            user.password_hash = generate_password_hash(new_password)
+            db.session.commit()
+            flash("Hasło zostało zresetowane. Możesz się teraz zalogować.", "success")
+            return redirect(url_for("login"))
+        
+        return render_template("forgot_password.html")
 
     # ---------- Cars & Reservations ----------
     @app.route("/cars")
@@ -337,15 +395,35 @@ def seed(app):
         # Utwórz katalog na bazę
         Path("/app/data").mkdir(parents=True, exist_ok=True)
         db.create_all()
+        
+        # Migracja: Dodaj security_code dla starych użytkowników
+        try:
+            users_without_code = User.query.filter(
+                (User.security_code == None) | (User.security_code == '')
+            ).all()
+            if users_without_code:
+                print(f"Generating security codes for {len(users_without_code)} existing users...")
+                for user in users_without_code:
+                    user.security_code = User.generate_security_code()
+                    print(f"  {user.email}: {user.security_code}")
+                db.session.commit()
+                print("Security codes migration completed!")
+        except Exception as e:
+            print(f"Migration note: {e}")
+            db.session.rollback()
+        
         # Admin
         if not User.query.filter_by(email="admin@example.com").first():
+            admin_password = "Admin123!@#$"   
             admin = User(
                 email="admin@example.com",
                 name="Admin",
-                password_hash=generate_password_hash("admin123"),
+                password_hash=generate_password_hash(admin_password),
+                security_code=User.generate_security_code(),
                 is_admin=True
             )
             db.session.add(admin)
+            print(f"Admin created - Email: admin@example.com, Password: {admin_password}, Security code: {admin.security_code}")
         # Samochody
         if Car.query.count() == 0:
             cars = [
