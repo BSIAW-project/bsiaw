@@ -1,0 +1,78 @@
+{
+    "compatibilities": [
+        "EC2",
+        "MANAGED_INSTANCES",
+        "FARGATE"
+    ],
+    "containerDefinitions": [
+        {
+            "cpu": 0,
+            "environment": [
+                {
+                    "name": "DATABASE_URL",
+                    "value": "postgresql://postgres:Bsiaw696969.@bsiaw-db-2.ctwkuusm6qmz.eu-central-1.rds.amazonaws.com:5432/bsiawdb"
+                }
+            ],
+            "essential": true,
+            "image": "514390778594.dkr.ecr.eu-central-1.amazonaws.com/bsiaw-app:latest",
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/bsiaw",
+                    "awslogs-region": "eu-central-1",
+                    "awslogs-stream-prefix": "bsiaw"
+                }
+            },
+            "mountPoints": [],
+            "name": "bsiaw-container",
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "hostPort": 8000,
+                    "protocol": "tcp"
+                }
+            ],
+            "systemControls": [],
+            "volumesFrom": []
+        }
+    ],
+    "cpu": "256",
+    "executionRoleArn": "arn:aws:iam::514390778594:role/bsiaw-ecs-task-execution-role",
+    "family": "bsiaw-task",
+    "memory": "512",
+    "networkMode": "awsvpc",
+    "placementConstraints": [],
+    "registeredAt": "2025-11-23T22:29:20.617Z",
+    "registeredBy": "arn:aws:iam::514390778594:user/admin",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "revision": 5,
+    "status": "ACTIVE",
+    "taskDefinitionArn": "arn:aws:ecs:eu-central-1:514390778594:task-definition/bsiaw-task:5",
+    "volumes": [],
+    "tags": []
+}
