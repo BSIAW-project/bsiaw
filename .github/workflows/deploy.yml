@@ -5,17 +5,17 @@ on:
     branches: [ "main" ]
 
 env:
-  AWS_REGION: eu-central-1                   # Twój region (Frankfurt)
-  ECR_REPOSITORY: bsiaw-app                  # Nazwa Twojego repo w ECR
-  ECS_SERVICE: bsiaw-service                 # Nazwa Twojego serwisu
-  ECS_CLUSTER: bsiaw-cluster                 # Nazwa Twojego klastra
-  # UWAGA: Upewnij się, że ta nazwa zgadza się z tą w pliku task-definition.json!
-  CONTAINER_NAME: bsiaw-container            
-  TASK_DEFINITION_FILE: task-definition.json 
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: bsiaw-app
+  ECS_SERVICE: bsiaw-service
+  ECS_CLUSTER: bsiaw-cluster
+  CONTAINER_NAME: bsiaw-container
+  # Upewnij się, że ten plik istnieje w repozytorium!
+  TASK_DEFINITION_FILE: task-definition.json
 
 jobs:
   # ------------------------------------------------------------------
-  # ETAP 1: Testy i Bezpieczeństwo (SAST) - Zgodnie z Lab 6
+  # ETAP 1: Testy i Bezpieczeństwo (SAST)
   # ------------------------------------------------------------------
   test-and-security:
     runs-on: ubuntu-latest
@@ -34,17 +34,13 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest bandit
 
-      # Testy Jednostkowe (Unit Tests) [cite: 97]
       - name: Run Unit Tests
         run: |
-          # Uruchamiamy testy, jeśli są. Jeśli nie ma, echo informacyjne (żeby nie zablokować pipeline na start)
           pytest || echo "Ostrzeżenie: Testy jednostkowe nie przeszły lub ich brak."
 
-      # Skanowanie kodu pod kątem bezpieczeństwa (Bandit) [cite: 98]
       - name: SAST Scan (Bandit)
-        run: bandit -r . -f custom || true  # "|| true" pozwala przejść dalej mimo znalezionych błędów (demo)
+        run: bandit -r . -f custom || true
 
-      # Skanowanie podatności w bibliotekach (Trivy) [cite: 99]
       - name: Dependency Scan (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
@@ -54,7 +50,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
   # ------------------------------------------------------------------
-  # ETAP 2: Budowanie i Wdrażanie (CD) - Zgodnie z Lab 5
+  # ETAP 2: Budowanie i Wdrażanie (CD)
   # ------------------------------------------------------------------
   build-and-deploy:
     needs: test-and-security
@@ -80,7 +76,6 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Budowanie obrazu i tagowanie hashem commita (git sha) [cite: 104]
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
@@ -102,7 +97,7 @@ jobs:
           wait-for-service-stability: true
 
   # ------------------------------------------------------------------
-  # ETAP 3: Testy Dynamiczne (DAST) - Zgodnie z Lab 6
+  # ETAP 3: Testy Dynamiczne (DAST)
   # ------------------------------------------------------------------
   dast-scan:
     needs: build-and-deploy
@@ -111,5 +106,5 @@ jobs:
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          [cite_start]target: 'https://bsiaw.pl'  # Tutaj Twój adres [cite: 111]
-          fail_action: false          # Nie przerywaj pipeline'u, tylko raportuj błędy
+          target: 'https://bsiaw.pl'
+          fail_action: false
