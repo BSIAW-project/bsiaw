@@ -13,6 +13,12 @@ env:
   # Upewnij się, że ten plik istnieje w repozytorium!
   TASK_DEFINITION_FILE: task-definition.json
 
+  permissions:
+  contents: read
+  issues: write
+  checks: write
+  pull-requests: write
+
 jobs:
   # ------------------------------------------------------------------
   # ETAP 1: Testy i Bezpieczeństwo (SAST)
