@@ -115,4 +115,4 @@ jobs:
           target: 'https://bsiaw.pl'
           fail_action: false
           allow_issue_writing: true
-          artifact_name: zap_scan  
+          artifact_name: results
