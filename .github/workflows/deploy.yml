@@ -10,9 +10,7 @@ env:
   ECS_SERVICE: bsiaw-service
   ECS_CLUSTER: bsiaw-cluster
   CONTAINER_NAME: bsiaw-container
-  # Upewnij się, że ten plik istnieje w repozytorium!
   TASK_DEFINITION_FILE: task-definition.json
-
   permissions:
   contents: read
   issues: write
@@ -53,7 +51,7 @@ jobs:
           scan-type: 'fs'
           ignore-unfixed: true
           format: 'table'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM'
 
   # ------------------------------------------------------------------
   # ETAP 2: Budowanie i Wdrażanie (CD)
