@@ -114,5 +114,5 @@ jobs:
         with:
           target: 'https://bsiaw.pl'
           fail_action: false
-          allow_issue_writing: true  
-          artifact_name: zap-scan    
+          allow_issue_writing: true
+          artifact_name: zap_scan  
