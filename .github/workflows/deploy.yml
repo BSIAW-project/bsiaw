@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: 'https://bsiaw.pl'
           fail_action: false
