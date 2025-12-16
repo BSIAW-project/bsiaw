@@ -388,8 +388,45 @@ def create_app():
     def fmt_dt(dt: datetime):
         return dt.strftime("%Y-%m-%d %H:%M")
 
+    # ========================================================
+    # SECURITY HEADERS (L7 - Naprawa błędów OWASP ZAP)
+    # ========================================================
+    @app.after_request
+    def add_security_headers(response):
+        # 1. Content-Security-Policy (CSP)
+        # Pozwalamy na skrypty/style lokalne ('self') i inline
+        csp_policy = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' data:;"
+        )
+        response.headers['Content-Security-Policy'] = csp_policy
+
+        # 2. Strict-Transport-Security (HSTS)
+        # Wymusza HTTPS przez 1 rok
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+        # 3. X-Frame-Options (Anti-Clickjacking)
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+
+        # 4. X-Content-Type-Options
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+
+        # 5. Server Obfuscation (Ukrywamy wersję serwera)
+        response.headers['Server'] = 'BSIAW-Secure-Server'
+
+        # 6. Permissions-Policy (Blokujemy zbędne API przeglądarki)
+        response.headers['Permissions-Policy'] = "geolocation=(), microphone=(), camera=()"
+
+        return response
+    # ========================================================
+
     return app
 
+
+    
 def seed(app):
     with app.app_context():
         # Utwórz katalog na bazę
