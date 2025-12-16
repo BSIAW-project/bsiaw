@@ -18,5 +18,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Skopiuj app
 COPY . .
 
+# --- HARDENING: Uruchom jako non-root user (Zadanie L7) ---
+# Tworzymy grupę i użytkownika 'appuser'
+RUN addgroup --system appuser && adduser --system --group appuser
+
+# Zmieniamy właściciela plików aplikacji na tego użytkownika
+RUN chown -R appuser:appuser /app
+
+# Przełączamy się z roota na appuser
+USER appuser
+# ---------------------------------------------
+
 EXPOSE 8000
 CMD ["python", "app.py"]
