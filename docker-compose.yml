@@ -8,10 +8,8 @@ services:
       - db
     # ZMIANA: Zaktualizowane zmienne środowiskowe
     environment:
-      - SECRET_KEY=change-me-in-prod
-      # Ta zmienna wskazuje teraz na kontener 'db', a nie na plik
-      - DATABASE_URL=postgresql://postgres:postgres123@db:5432/car_rental_db
-
+      - SECRET_KEY
+      - DATABASE_URL
       - ADMIN_PASSWORD
     restart: always
 
