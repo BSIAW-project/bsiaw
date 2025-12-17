@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import text
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask_cors import CORS
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -52,6 +53,13 @@ def create_app():
 
 
     db.init_app(app)
+
+    # Konfiguracja CORS
+    CORS(app, 
+        resources={r"/api/*": {"origins": "https://trusted-domain.com"}}, 
+        supports_credentials=True, 
+        allow_headers=["Authorization"]
+    )
 
     login_manager = LoginManager()
     login_manager.login_view = "login"
