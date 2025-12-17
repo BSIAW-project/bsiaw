@@ -11,11 +11,13 @@ env:
   ECS_CLUSTER: bsiaw-cluster
   CONTAINER_NAME: bsiaw-container
   TASK_DEFINITION_FILE: task-definition.json
-  permissions:
+
+permissions:
   contents: read
   issues: write
   checks: write
   pull-requests: write
+  security-events: write
 
 jobs:
   # ------------------------------------------------------------------
@@ -52,6 +54,30 @@ jobs:
           ignore-unfixed: true
           format: 'table'
           severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: IaC Security Scan (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          exit-code: '0'
+          
+      - name: IaC Scan with SARIF output
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-iac-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          
+      - name: Upload Trivy IaC results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-iac-results.sarif'
 
   # ------------------------------------------------------------------
   # ETAP 2: Budowanie i Wdrażanie (CD)
@@ -90,12 +116,12 @@ jobs:
         with:
           task-definition: ${{ env.TASK_DEFINITION_FILE }}
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}  	
+          image: ${{ steps.build-image.outputs.image }}
           environment-variables: |
             ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
-        
+
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
@@ -104,7 +130,7 @@ jobs:
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
-# ------------------------------------------------------------------
+  # ------------------------------------------------------------------
   # ETAP 3: Testy Dynamiczne (DAST)
   # ------------------------------------------------------------------
   dast-scan:
