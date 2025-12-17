@@ -11,10 +11,8 @@ services:
       - SECRET_KEY=change-me-in-prod
       # Ta zmienna wskazuje teraz na kontener 'db', a nie na plik
       - DATABASE_URL=postgresql://postgres:postgres123@db:5432/car_rental_db
-    # ZMIANA: Wolumen ./data nie jest już potrzebny dla bazy
-    # (możesz go zostawić, jeśli trzymasz tam inne pliki)
-    # volumes:
-    #   - ./data:/app/data
+
+      - ADMIN_PASSWORD
     restart: always
 
   # NOWOŚĆ: Definicja usługi bazy danych PostgreSQL

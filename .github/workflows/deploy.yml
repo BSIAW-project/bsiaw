@@ -90,8 +90,11 @@ jobs:
         with:
           task-definition: ${{ env.TASK_DEFINITION_FILE }}
           container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.image }}
-
+          image: ${{ steps.build-image.outputs.image }}  	
+          environment-variables: |
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+        
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:

@@ -1,6 +1,7 @@
 import os
 import time
 import re 
+import logging
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from functools import wraps
@@ -37,6 +38,18 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////app/data/app.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=6)
+    app.config['SESSION_COOKIE_SECURE'] = True 
+    # Blokuje kradzież sesji przez JavaScript (ochrona XSS)
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    # Chroni przed CSRF
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
+    if not app.debug:
+        # Przekieruj logi na standardowe wyjście (dla AWS CloudWatch)
+        logging.basicConfig(level=logging.INFO)
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('Security Monitoring Enabled')
+
 
     db.init_app(app)
 
@@ -420,6 +433,13 @@ def create_app():
         # 6. Permissions-Policy (Blokujemy zbędne API przeglądarki)
         response.headers['Permissions-Policy'] = "geolocation=(), microphone=(), camera=()"
 
+        # 7. Site Isolation (Naprawa błędu Spectre z ZAP) - TEGO BRAKUJE
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+        response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
+        
+        # 8. Cache (Wymuszamy odświeżanie, żeby skaner widział zmiany)
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+
         return response
     # ========================================================
 
@@ -451,7 +471,10 @@ def seed(app):
         
         # Admin
         if not User.query.filter_by(email="admin@example.com").first():
-            admin_password = "Admin123!@#$"   
+            admin_password = os.environ.get("ADMIN_PASSWORD")
+            if not admin_password:
+                raise ValueError("CRITICAL ERROR: Zmienna środowiskowa 'ADMIN_PASSWORD' nie jest ustawiona! Sprawdź plik .env.")
+            
             admin = User(
                 email="admin@example.com",
                 name="Admin",
@@ -460,7 +483,7 @@ def seed(app):
                 is_admin=True
             )
             db.session.add(admin)
-            print(f"Admin created - Email: admin@example.com, Password: {admin_password}, Security code: {admin.security_code}")
+            print(f"Admin created - Email: admin@example.com, Security code: {admin.security_code}")
         # Samochody
         if Car.query.count() == 0:
             cars = [
