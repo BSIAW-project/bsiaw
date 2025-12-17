@@ -470,20 +470,34 @@ def seed(app):
             db.session.rollback()
         
         # Admin
-        if not User.query.filter_by(email="admin@example.com").first():
-            admin_password = os.environ.get("ADMIN_PASSWORD")
-            if not admin_password:
-                raise ValueError("CRITICAL ERROR: Zmienna środowiskowa 'ADMIN_PASSWORD' nie jest ustawiona! Sprawdź plik .env.")
-            
+        admin_email = "admin@example.com"
+        admin = User.query.filter_by(email=admin_email).first()
+        
+        # Pobierz nowe hasło ze zmiennych
+        admin_password = os.environ.get("ADMIN_PASSWORD")
+        if not admin_password:
+             raise ValueError("CRITICAL ERROR: Zmienna 'ADMIN_PASSWORD' brakująca!")
+
+        if not admin:
+            # Scenariusz 1: Admina nie ma -> Tworzymy nowego
             admin = User(
-                email="admin@example.com",
+                email=admin_email,
                 name="Admin",
                 password_hash=generate_password_hash(admin_password),
                 security_code=User.generate_security_code(),
                 is_admin=True
             )
             db.session.add(admin)
-            print(f"Admin created - Email: admin@example.com, Security code: {admin.security_code}")
+            print(f"Admin created - Email: {admin_email}")
+        else:
+            # Scenariusz 2: Admin już jest (stare hasło) -> AKTUALIZUJEMY HASŁO
+            # To naprawi problem na AWS i localhost bez kasowania bazy!
+            admin.password_hash = generate_password_hash(admin_password)
+            # Upewniamy się, że ma uprawnienia admina
+            admin.is_admin = True
+            print(f"Admin updated - Password reset for: {admin_email}")
+        
+        
         # Samochody
         if Car.query.count() == 0:
             cars = [
