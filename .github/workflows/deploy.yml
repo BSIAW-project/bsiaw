@@ -94,6 +94,7 @@ jobs:
           environment-variables: |
             ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
             SECRET_KEY=${{ secrets.SECRET_KEY }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
         
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
