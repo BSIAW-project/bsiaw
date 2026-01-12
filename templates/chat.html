@@ -116,7 +116,13 @@
     }
    
     // Start polling
-    loadNew();
-    setInterval(loadNew, 2000);
+    function poll() {
+      loadNew().finally(() => {
+        setTimeout(poll, 2000);
+      });
+    }
+    loadNew(); // initial load
+    setTimeout(poll, 2000); // start polling
+
   </script>
 {% endblock %}

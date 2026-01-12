@@ -417,7 +417,7 @@ def create_app():
             time_diff = (datetime.utcnow() - last_msg.created_at).total_seconds()
             if time_diff < 10:
                 remaining = int(10 - time_diff)
-                return jsonify({"ok": False, "error": f"rate_limit", "wait": remaining}), 429
+                return jsonify({"ok": False, "error": "rate_limit", "wait": remaining}), 429
 
         # --- FIX NA XSS (Sanityzacja) ---
         # Używamy bleach, żeby wyciąć WSZYSTKIE tagi HTML.
