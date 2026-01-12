@@ -2,6 +2,7 @@ import os
 import time
 import re 
 import logging
+import bleach
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from functools import wraps
@@ -355,7 +356,7 @@ def create_app():
         posts = ForumPost.query.filter_by(topic_id=topic.id).order_by(ForumPost.created_at.asc()).all()
         return render_template("forum_topic.html", topic=topic, posts=posts)
 
-    # ---------- Chat (prosty polling) ----------
+    # ---------- Chat (naprawiony) ----------
     @app.route("/chat")
     @login_required
     def chat():
@@ -365,44 +366,61 @@ def create_app():
     @login_required
     def chat_messages():
         after = request.args.get("after")
-        q = ChatMessage.query.order_by(ChatMessage.created_at.desc()).limit(50)
-        messages = list(reversed(q.all()))  # najnowsze 50, odwrócone do rosnącego
+        
+        # Budujemy zapytanie podstawowe
+        query = ChatMessage.query
+        
         if after:
+            # OPTYMALIZACJA (Fix na zacinanie i powielanie):
+            # Filtrujemy już w bazie danych (SQL), a nie w pętli Pythona.
+            # Dzięki temu baza zwraca tylko nowe wiadomości, a nie mieli 50 ostatnich za każdym razem.
             try:
                 after_dt = datetime.fromisoformat(after)
-                messages = [m for m in messages if m.created_at > after_dt]
+                # Pobierz wiadomości nowsze niż data 'after', posortowane chronologicznie
+                query = query.filter(ChatMessage.created_at > after_dt).order_by(ChatMessage.created_at.asc())
+                messages = query.all()
             except Exception:
-                pass
+                # Jeśli data jest błędna, zwróć pustą listę zamiast błędu
+                messages = []
+        else:
+            # PIERWSZE ŁADOWANIE:
+            # Jeśli nie ma parametru 'after', pobierz 50 ostatnich
+            # Sortujemy malejąco, bierzemy 50, a potem odwracamy w Pythonie, żeby były chronologicznie
+            last_50 = query.order_by(ChatMessage.created_at.desc()).limit(50).all()
+            messages = list(reversed(last_50))
+
         data = [{
             "id": m.id,
             "user": m.user.name,
             "content": m.content,
             "created_at": m.created_at.isoformat()
         } for m in messages]
+        
         return jsonify(data)
 
     @app.post("/api/chat/send")
     @login_required
     def chat_send():
         content = (request.json or {}).get("content", "").strip()
+        
         if not content:
             return jsonify({"ok": False, "error": "empty"}), 400
-        m = ChatMessage(user_id=current_user.id, content=content)
+            
+        # --- FIX NA XSS (Sanityzacja) ---
+        # Używamy bleach, żeby wyciąć WSZYSTKIE tagi HTML.
+        # tags=[] oznacza "żadne tagi nie są dozwolone".
+        # strip=True usuwa tagi całkowicie (np. <script> znika).
+        clean_content = bleach.clean(content, tags=[], attributes={}, strip=True)
+        
+        # Jeśli po wyczyszczeniu nic nie zostało (np. ktoś wysłał sam <script>...), odrzuć
+        if not clean_content:
+             return jsonify({"ok": False, "error": "invalid content"}), 400
+
+        m = ChatMessage(user_id=current_user.id, content=clean_content)
         db.session.add(m)
         db.session.commit()
+        
         return jsonify({"ok": True, "id": m.id, "created_at": m.created_at.isoformat()})
-
-
-    @app.post("/api/chat/message/<int:message_id>/delete")
-    @login_required
-    @admin_required # Kluczowe!
-    def delete_chat_message(message_id):
-        msg = ChatMessage.query.get_or_404(message_id)
-        
-        db.session.delete(msg)
-        db.session.commit()
-        
-        return jsonify({"ok": True})
 
     # ---------- Helpers ----------
     @app.template_filter("fmt_dt")
