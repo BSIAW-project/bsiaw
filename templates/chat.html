@@ -10,6 +10,9 @@
   <script>
     let IS_ADMIN = {{ current_user.is_admin|tojson }};
     let lastTs = null;
+    const displayedIds = new Set();  // Zapobiega duplikowaniu wiadomości
+    let lastSentTime = 0;  // Rate limiting - czas ostatniej wysłanej wiadomości
+    const SEND_COOLDOWN = 10000;  // 10 sekund w milisekundach
 
     async function loadNew() {
       let url = "/api/chat/messages";
@@ -22,14 +25,28 @@
         if (Array.isArray(data) && data.length > 0) {
           const box = document.getElementById("chat-box");
           data.forEach(m => {
+            // Sprawdź czy wiadomość już została wyświetlona
+            if (displayedIds.has(m.id)) return;
+            displayedIds.add(m.id);
+
             const div = document.createElement("div");
             div.className = "msg";
+            div.dataset.msgId = m.id;  // Przechowuj ID dla usuwania
             const when = new Date(m.created_at).toLocaleString();
-            let msgHtml = `<span>[${when}] ${m.user}: ${m.content}</span>`;
+
+            // BEZPIECZNE tworzenie elementów - zapobiega XSS
+            const span = document.createElement("span");
+            span.textContent = `[${when}] ${m.user}: ${m.content}`;
+            div.appendChild(span);
+
             if (IS_ADMIN) {
-              msgHtml += ` <button class="chat-delete-btn" onclick="deleteMsg(${m.id}, this)">Usuń</button>`;
+              const btn = document.createElement("button");
+              btn.className = "chat-delete-btn";
+              btn.textContent = "Usuń";
+              btn.onclick = function() { deleteMsg(m.id, this); };
+              div.appendChild(document.createTextNode(" "));
+              div.appendChild(btn);
             }
-            div.innerHTML = msgHtml;
             box.appendChild(div);
           });
           box.scrollTop = box.scrollHeight;
@@ -45,13 +62,31 @@
       const input = document.getElementById("chat-input");
       const content = input.value.trim();
       if (!content) return false;
+
+      // Rate limiting - sprawdź czy minęło 10 sekund
+      const now = Date.now();
+      const timeSinceLast = now - lastSentTime;
+      if (timeSinceLast < SEND_COOLDOWN) {
+        const remaining = Math.ceil((SEND_COOLDOWN - timeSinceLast) / 1000);
+        alert(`Poczekaj jeszcze ${remaining} sek. przed wysłaniem kolejnej wiadomości.`);
+        return false;
+      }
+
       input.value = "";
       try {
-        await fetch("/api/chat/send", {
+        const res = await fetch("/api/chat/send", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
           body: JSON.stringify({content})
         });
+        if (res.ok) {
+          lastSentTime = Date.now();  // Aktualizuj czas tylko po udanym wysłaniu
+        } else if (res.status === 429) {
+          // Rate limit z serwera
+          const data = await res.json();
+          alert(`Zbyt szybko! Poczekaj ${data.wait || 10} sek.`);
+          input.value = content;  // Przywróć wiadomość
+        }
       } catch (e) {
         console.error(e);
       }
