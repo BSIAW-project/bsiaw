@@ -97,6 +97,10 @@ def create_app():
             if not email or not name or not password:
                 flash("Wypełnij wszystkie pola.", "error")
                 return redirect(url_for("register"))
+            # Walidacja nazwy użytkownika - tylko bezpieczne znaki (zapobiega XSS przez nazwę)
+            if not re.match(r'^[a-zA-Z0-9ąćęłńóśźżĄĆĘŁŃÓŚŹŻ_\-\s]{2,50}$', name):
+                flash("Nazwa może zawierać tylko litery, cyfry, spacje, podkreślenia i myślniki (2-50 znaków).", "error")
+                return redirect(url_for("register"))
             if len(password) < 12:
                 flash("Hasło musi mieć co najmniej 12 znaków.", "error")
                 return redirect(url_for("register"))
@@ -402,10 +406,19 @@ def create_app():
     @login_required
     def chat_send():
         content = (request.json or {}).get("content", "").strip()
-        
+
         if not content:
             return jsonify({"ok": False, "error": "empty"}), 400
-            
+
+        # Rate limiting - max 1 wiadomość na 10 sekund
+        last_msg = ChatMessage.query.filter_by(user_id=current_user.id)\
+            .order_by(ChatMessage.created_at.desc()).first()
+        if last_msg:
+            time_diff = (datetime.utcnow() - last_msg.created_at).total_seconds()
+            if time_diff < 10:
+                remaining = int(10 - time_diff)
+                return jsonify({"ok": False, "error": f"rate_limit", "wait": remaining}), 429
+
         # --- FIX NA XSS (Sanityzacja) ---
         # Używamy bleach, żeby wyciąć WSZYSTKIE tagi HTML.
         # tags=[] oznacza "żadne tagi nie są dozwolone".
@@ -421,6 +434,22 @@ def create_app():
         db.session.commit()
         
         return jsonify({"ok": True, "id": m.id, "created_at": m.created_at.isoformat()})
+
+    @app.post("/api/chat/message/<int:message_id>/delete")
+    @login_required
+    def delete_chat_message(message_id):
+        """Usuwa wiadomość z chatu - tylko dla administratorów."""
+        # Sprawdzenie uprawnień dla API (zwraca JSON zamiast redirect)
+        if not current_user.is_admin:
+            return jsonify({"ok": False, "error": "Brak uprawnień"}), 403
+
+        message = ChatMessage.query.get(message_id)
+        if not message:
+            return jsonify({"ok": False, "error": "Wiadomość nie istnieje"}), 404
+
+        db.session.delete(message)
+        db.session.commit()
+        return jsonify({"ok": True})
 
     # ---------- Helpers ----------
     @app.template_filter("fmt_dt")
