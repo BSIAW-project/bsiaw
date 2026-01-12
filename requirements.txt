@@ -1,7 +1,7 @@
-Flask==3.0.3
-Flask-Cors==4.0.1
+Flask==3.1.1
+Flask-Cors==6.0.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
 psycopg2-binary==2.9.9
 bleach==6.1.0
-gunicorn==21.2.0
+gunicorn==22.0.0
