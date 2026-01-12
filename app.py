@@ -406,6 +406,12 @@ def create_app():
         if not content:
             return jsonify({"ok": False, "error": "empty"}), 400
             
+        # --- ANTI-SPAM (Rate Limiting) ---
+        # Sprawdź ostatnią wiadomość tego użytkownika
+        last_msg = ChatMessage.query.filter_by(user_id=current_user.id).order_by(ChatMessage.created_at.desc()).first()
+        if last_msg and last_msg.created_at > datetime.utcnow() - timedelta(seconds=5):
+            return jsonify({"ok": False, "error": "Wiadomości można wysyłać co 5 sekund."}), 429
+
         # --- FIX NA XSS (Sanityzacja) ---
         # Używamy bleach, żeby wyciąć WSZYSTKIE tagi HTML.
         # tags=[] oznacza "żadne tagi nie są dozwolone".
