@@ -30,4 +30,7 @@ USER appuser
 # ---------------------------------------------
 
 EXPOSE 8000
-CMD ["python", "app.py"]
+
+# Uruchom seed przed startem serwera, potem gunicorn
+CMD python -c "from app import create_app, wait_for_db, seed; app = create_app(); wait_for_db(app); seed(app)" && \
+    gunicorn --bind 0.0.0.0:8000 --workers 2 "app:create_app()"
