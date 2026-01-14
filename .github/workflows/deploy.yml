@@ -136,5 +136,5 @@ jobs:
         with:
           target: 'https://bsiaw.pl'
           fail_action: false
-          allow_issue_writing: true
+          allow_issue_writing: false
           artifact_name: results
